@@ -3,7 +3,7 @@ import { cleanup } from '@testing-library/react'
 import { afterAll, afterEach, beforeAll } from 'vitest'
 
 import { setConfig } from '@/config/env'
-import { resetUsers } from '@/mocks/handlers'
+import { resetAuth, resetUsers } from '@/mocks/handlers'
 import { server } from '@/mocks/server'
 
 // Tests do not boot through main.tsx, so there is no /config.json fetch.
@@ -20,6 +20,8 @@ afterEach(() => {
   cleanup()
   server.resetHandlers()
   resetUsers()
+  resetAuth()
+  localStorage.clear()
 })
 
 afterAll(() => server.close())

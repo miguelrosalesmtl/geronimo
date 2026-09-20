@@ -1,7 +1,31 @@
 import { HttpResponse, http } from 'msw'
 
+import type { AuthUser, LoginCredentials } from '@/types/auth'
 import type { CreateUserInput, User } from '@/types/user'
 import type { KeysetPage, TestRun, TestRunResult, TestRunSummary } from '@/types/testRun'
+
+const DEV_USER: AuthUser = {
+  id: 'dev-user',
+  email: 'dev@example.com',
+  full_name: 'Dev User',
+  is_superuser: true,
+  is_active: true,
+}
+const DEV_PASSWORD = 'password'
+const FAKE_TOKEN = 'msw-fake-token'
+
+// Starts signed OUT, same as a fresh browser: /login and RequireAuth's
+// redirect get exercised in dev/test too, not just the happy path.
+let mockSessionToken: string | null = null
+
+export function resetAuth() {
+  mockSessionToken = null
+}
+
+/** Test helper: simulate "already signed in" without driving the login form. */
+export function setMockSession(token: string | null) {
+  mockSessionToken = token
+}
 
 const seed: User[] = [
   { id: '1', name: 'Ada Lovelace', email: 'ada@example.com', role: 'admin' },
@@ -78,6 +102,28 @@ const testResults: TestRunResult[] = [
 ]
 
 export const handlers = [
+  http.post('/api/auth/login', async ({ request }) => {
+    const { email, password } = (await request.json()) as LoginCredentials
+    if (email !== DEV_USER.email || password !== DEV_PASSWORD) {
+      return HttpResponse.json({ error: 'invalid credentials' }, { status: 401 })
+    }
+    mockSessionToken = FAKE_TOKEN
+    return HttpResponse.json({ token: FAKE_TOKEN, user: DEV_USER }, { status: 200 })
+  }),
+
+  http.post('/api/auth/logout', () => {
+    mockSessionToken = null
+    return new HttpResponse(null, { status: 204 })
+  }),
+
+  http.get('/api/auth/me', ({ request }) => {
+    const header = request.headers.get('authorization')
+    if (!mockSessionToken || header !== `Bearer ${mockSessionToken}`) {
+      return HttpResponse.json({ error: 'authentication required' }, { status: 401 })
+    }
+    return HttpResponse.json(DEV_USER)
+  }),
+
   http.get('/api/users', () => HttpResponse.json(users)),
 
   http.get('/api/users/:id', ({ params }) => {

@@ -1,3 +1,4 @@
+import { authToken } from '@/api/authToken'
 import { getConfig } from '@/config/env'
 
 export class ApiError extends Error {
@@ -25,17 +26,23 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
   // Read at call time, not module scope: config is not loaded when this module
   // is first evaluated.
   const url = `${getConfig().apiUrl}${path}`
+  const token = authToken.get()
 
   const response = await fetch(url, {
     ...rest,
     headers: {
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...headers,
     },
     ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
   })
 
   if (!response.ok) {
+    // A 401 means this token is no longer any good (missing, expired,
+    // revoked) -- drop it so the next render knows we're logged out, instead
+    // of retrying the same dead token forever.
+    if (response.status === 401) authToken.clear()
     throw new ApiError(response.status, url, `Request failed: ${response.status} ${path}`)
   }
 
