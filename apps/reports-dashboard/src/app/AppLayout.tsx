@@ -25,9 +25,6 @@ export function AppLayout() {
     <div className="min-h-screen">
       <EnvironmentBanner environment={environment} />
       <nav className="mx-auto flex max-w-5xl items-center gap-6 px-6 pt-6">
-        <NavLink to="/users" className={navLinkClass}>
-          Users
-        </NavLink>
         <NavLink to="/test-runs" className={navLinkClass}>
           Test runs
         </NavLink>
