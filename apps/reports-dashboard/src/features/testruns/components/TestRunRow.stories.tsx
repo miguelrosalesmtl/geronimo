@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { fn } from 'storybook/test'
 
-import { TestRunCard } from '@/features/testruns/components/TestRunCard'
+import { TestRunRow } from '@/features/testruns/components/TestRunRow'
 
 const meta = {
-  title: 'TestRuns/TestRunCard',
-  component: TestRunCard,
+  title: 'TestRuns/TestRunRow',
+  component: TestRunRow,
   args: {
     run: {
       id: '1',
@@ -23,7 +23,7 @@ const meta = {
     },
     onSelect: fn(),
   },
-} satisfies Meta<typeof TestRunCard>
+} satisfies Meta<typeof TestRunRow>
 
 export default meta
 type Story = StoryObj<typeof meta>
@@ -49,7 +49,7 @@ export const CronTriggered: Story = {
   args: { run: { ...meta.args.run, trigger_type: 'cronjob' } },
 }
 
-/** No `onSelect` handler — the card is not clickable. */
+/** No `onSelect` handler — the row is not clickable. */
 export const ReadOnly: Story = {
   args: { onSelect: undefined },
 }

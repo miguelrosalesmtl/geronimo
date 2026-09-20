@@ -1,10 +1,10 @@
-import { TestRunCard } from '@/features/testruns/components/TestRunCard'
+import { TestRunRow } from '@/features/testruns/components/TestRunRow'
 import type { TestRunSummary } from '@/types/testRun'
 
 export interface TestRunListProps {
-  /** Resolved runs. Never undefined — the container waits for the data. */
+  /** Resolved runs, newest first. Never undefined — the container waits for the data. */
   runs: TestRunSummary[]
-  /** Emitted with a run's id when its card is clicked. */
+  /** Emitted with a run's id when its row is clicked. */
   onSelect?: (id: string) => void
 }
 
@@ -24,12 +24,10 @@ export function TestRunList({ runs, onSelect }: TestRunListProps) {
   }
 
   return (
-    <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="rounded-lg border">
       {runs.map((run) => (
-        <li key={run.id}>
-          <TestRunCard run={run} onSelect={onSelect} />
-        </li>
+        <TestRunRow key={run.id} run={run} onSelect={onSelect} />
       ))}
-    </ul>
+    </div>
   )
 }

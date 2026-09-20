@@ -37,7 +37,7 @@ const runs: TestRunSummary[] = [
 ]
 
 describe('TestRunList', () => {
-  it('renders a card per run', () => {
+  it('renders a row per run', () => {
     render(<TestRunList runs={runs} />)
 
     expect(screen.getByText('staging')).toBeInTheDocument()

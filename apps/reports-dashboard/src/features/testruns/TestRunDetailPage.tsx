@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TestResultList } from '@/features/testruns/components/TestResultList'
 import { useTestRun, useTestRunResults } from '@/features/testruns/hooks/useTestRun'
+import { statusBadgeProps } from '@/lib/testStatus'
 
 /**
  * Container.
@@ -36,9 +37,7 @@ export function TestRunDetailPage() {
         <header className="space-y-1">
           <div className="flex items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{run.data.environment}</h1>
-            <Badge variant={run.data.status === 'passed' ? 'default' : 'destructive'}>
-              {run.data.status}
-            </Badge>
+            <Badge {...statusBadgeProps(run.data.status)}>{run.data.status}</Badge>
           </div>
           <p className="text-muted-foreground text-sm">
             {run.data.trigger_type} · {run.data.base_url} ·{' '}

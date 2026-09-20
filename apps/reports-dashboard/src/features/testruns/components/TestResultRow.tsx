@@ -2,18 +2,11 @@ import { ChevronDownIcon } from 'lucide-react'
 
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { statusBadgeProps } from '@/lib/testStatus'
 import type { TestRunResult } from '@/types/testRun'
 
 export interface TestResultRowProps {
   result: TestRunResult
-}
-
-const statusVariant: Record<TestRunResult['status'], 'default' | 'destructive' | 'secondary'> = {
-  passed: 'default',
-  failed: 'destructive',
-  timedout: 'destructive',
-  skipped: 'secondary',
-  interrupted: 'secondary',
 }
 
 /**
@@ -22,6 +15,7 @@ const statusVariant: Record<TestRunResult['status'], 'default' | 'destructive' |
  */
 export function TestResultRow({ result }: TestResultRowProps) {
   const hasError = Boolean(result.error_message || result.error_stack)
+  const { variant, className } = statusBadgeProps(result.status)
 
   return (
     <Collapsible className="rounded-lg border">
@@ -38,7 +32,9 @@ export function TestResultRow({ result }: TestResultRowProps) {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Badge variant={statusVariant[result.status]}>{result.status}</Badge>
+          <Badge variant={variant} className={className}>
+            {result.status}
+          </Badge>
           {hasError ? <ChevronDownIcon className="size-4 transition-transform" /> : null}
         </div>
       </CollapsibleTrigger>
