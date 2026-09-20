@@ -1,0 +1,36 @@
+geronimo installed as release {{ .Release.Name }} in namespace {{ .Release.Namespace }}.
+
+1. Watch the reports stack come up:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+2. First install only -- bootstrap reports-backend's service account (see the
+   plan's §4 / apps/reports-backend README): grant an admin role to a ci-bot
+   user, mint an API key scoped to testruns.create, then store it:
+     kubectl create secret generic {{ include "geronimo.reportsApiKeySecretName" . }} \
+       --from-literal=REPORTS_API_KEY=<the minted key> -n {{ .Release.Namespace }}
+
+3. Trigger the e2e suite on demand:
+   kubectl create job --from=job/{{ include "geronimo.fullname" . }}-e2e-run \
+     {{ include "geronimo.fullname" . }}-e2e-manual-$(date +%s) -n {{ .Release.Namespace }}
+
+4. Browse results:
+   kubectl port-forward svc/{{ include "geronimo.fullname" . }}-reports-dashboard 8080:{{ .Values.reportsDashboard.service.port }} -n {{ .Release.Namespace }}
+   open http://localhost:8080
+
+{{- if not .Values.target.baseUrl }}
+
+NOTE: .Values.target.baseUrl is empty -- the e2e Job/CronJob will run against
+an unset target until you set target.baseUrl / target.apiBaseUrl.
+{{- end }}
+
+{{- $cors := .Values.reportsBackend.env.corsAllowedOrigins }}
+{{- $corsFromIngress := and .Values.reportsDashboard.ingress.enabled .Values.reportsDashboard.ingress.host }}
+{{- if and (not $cors) (not $corsFromIngress) }}
+
+NOTE: reportsBackend.env.corsAllowedOrigins is empty and no ingress host is
+set, so CORS stays OFF. reports-dashboard's browser calls to reports-backend
+will be silently blocked by the BROWSER (not a server error) until you set
+reportsBackend.env.corsAllowedOrigins to the exact origin you reach the
+dashboard at -- including "http://localhost:8080" if you're only using the
+port-forward above.
+{{- end }}

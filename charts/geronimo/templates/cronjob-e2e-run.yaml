@@ -1,0 +1,42 @@
+{{- if .Values.cronjob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "geronimo.fullname" . }}-e2e-cron
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "e2e-cron" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronjob.backoffLimit }}
+      activeDeadlineSeconds: {{ .Values.cronjob.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "geronimo.componentLabels" (dict "component" "e2e-cron" "Release" .Release "Chart" .Chart) | nindent 12 }}
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: e2e
+              image: "{{ .Values.image.e2e.repository }}:{{ .Values.image.e2e.tag }}"
+              imagePullPolicy: {{ .Values.image.e2e.pullPolicy }}
+              env:
+                - name: TRIGGER_TYPE
+                  value: {{ .Values.cronjob.triggerType | quote }}
+                - name: TEST_GREP
+                  value: {{ .Values.cronjob.grep | quote }}
+                - name: REPORTS_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "geronimo.reportsApiKeySecretName" . }}
+                      key: REPORTS_API_KEY
+              envFrom:
+                - configMapRef:
+                    name: {{ include "geronimo.fullname" . }}-config
+              resources:
+                {{- toYaml .Values.cronjob.resources | nindent 16 }}
+{{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: geronimo
+description: Playwright e2e test suite (Job + CronJob) and a reports system to browse results, for a Kubernetes-deployed stack
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

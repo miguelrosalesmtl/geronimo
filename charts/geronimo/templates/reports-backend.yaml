@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geronimo.reportsBackendHost" . }}
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "reports-backend" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "geronimo.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reports-backend
+  ports:
+    - name: http
+      port: {{ .Values.reportsBackend.service.port }}
+      targetPort: {{ .Values.reportsBackend.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geronimo.reportsBackendHost" . }}
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "reports-backend" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  replicas: {{ .Values.reportsBackend.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "geronimo.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: reports-backend
+  template:
+    metadata:
+      labels:
+        {{- include "geronimo.componentLabels" (dict "component" "reports-backend" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      # Migrations run as an init container from the identical image, per the
+      # forked template's own README ("In Kubernetes that identical container
+      # is an init container or a Job") -- the app container can never start
+      # against an unmigrated database.
+      initContainers:
+        - name: migrate
+          image: "{{ .Values.image.reportsBackend.repository }}:{{ .Values.image.reportsBackend.tag }}"
+          imagePullPolicy: {{ .Values.image.reportsBackend.pullPolicy }}
+          args: ["migrate", "up"]
+          env:
+            {{- include "geronimo.reportsBackendEnv" . | nindent 12 }}
+      containers:
+        - name: reports-backend
+          image: "{{ .Values.image.reportsBackend.repository }}:{{ .Values.image.reportsBackend.tag }}"
+          imagePullPolicy: {{ .Values.image.reportsBackend.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.reportsBackend.port }}
+          env:
+            {{- include "geronimo.reportsBackendEnv" . | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.reportsBackend.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: {{ .Values.reportsBackend.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.reportsBackend.resources | nindent 12 }}

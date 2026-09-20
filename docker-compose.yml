@@ -1,0 +1,93 @@
+# Local dev stack: the reports system (postgres + reports-backend +
+# reports-dashboard) plus a throwaway Django admin app (target-app) that
+# apps/e2e can actually log into -- a concrete stand-in for whatever real
+# application eventually gets tested in Kubernetes. apps/e2e itself is run
+# separately (it's a one-shot CLI, not a long-running service) -- see
+# apps/e2e/README.md.
+#
+#   docker compose up --build
+#   docker compose down -v
+
+services:
+  target-app:
+    build: ./apps/target-app
+    environment:
+      DJANGO_SUPERUSER_USERNAME: e2e-admin
+      DJANGO_SUPERUSER_EMAIL: e2e-admin@example.com
+      DJANGO_SUPERUSER_PASSWORD: correct-horse-battery-staple
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  reports-postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - "5433:5432"
+    volumes:
+      - reports_pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app -d app"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  reports-backend-migrate:
+    build: ./apps/reports-backend
+    command: ["migrate", "up"]
+    environment:
+      APP_ENV: development
+      POSTGRES_HOST: reports-postgres
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    depends_on:
+      reports-postgres:
+        condition: service_healthy
+    restart: "no"
+
+  reports-backend:
+    build: ./apps/reports-backend
+    environment:
+      APP_ENV: development
+      APP_DEBUG: "true"
+      SERVER_PORT: "8080"
+      POSTGRES_HOST: reports-postgres
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+      POSTGRES_SSLMODE: disable
+      MAIL_BACKEND: log
+      APP_BASE_URL: http://localhost:8091
+      # reports-dashboard is a browser SPA on a different origin (port 8091);
+      # CORS defaults to OFF in this template (deliberately -- see its README),
+      # so without this every dashboard API call is silently blocked by the
+      # browser, not the server. Must match the exact origin the browser uses.
+      CORS_ALLOWED_ORIGINS: http://localhost:8091
+    ports:
+      - "8090:8080"
+    depends_on:
+      reports-postgres:
+        condition: service_healthy
+      reports-backend-migrate:
+        condition: service_completed_successfully
+
+  reports-dashboard:
+    build: ./apps/reports-dashboard
+    environment:
+      APP_API_URL: http://localhost:8090/api/v1
+      APP_ENVIRONMENT: development
+    ports:
+      - "8091:8080"
+    depends_on:
+      - reports-backend
+
+volumes:
+  reports_pgdata:

@@ -1,0 +1,83 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "geronimo.fullname" . }}-reports-dashboard
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "reports-dashboard" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  selector:
+    app.kubernetes.io/name: {{ include "geronimo.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: reports-dashboard
+  ports:
+    - name: http
+      port: {{ .Values.reportsDashboard.service.port }}
+      targetPort: {{ .Values.reportsDashboard.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "geronimo.fullname" . }}-reports-dashboard
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "reports-dashboard" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  replicas: {{ .Values.reportsDashboard.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "geronimo.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: reports-dashboard
+  template:
+    metadata:
+      labels:
+        {{- include "geronimo.componentLabels" (dict "component" "reports-dashboard" "Release" .Release "Chart" .Chart) | nindent 8 }}
+    spec:
+      containers:
+        - name: reports-dashboard
+          image: "{{ .Values.image.reportsDashboard.repository }}:{{ .Values.image.reportsDashboard.tag }}"
+          imagePullPolicy: {{ .Values.image.reportsDashboard.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.reportsDashboard.port }}
+          env:
+            - name: APP_API_URL
+              # reports-dashboard's API client calls short paths like /test-runs,
+              # so this must include the /api/v1 prefix -- see docs/architecture.md.
+              value: "http://{{ include "geronimo.reportsBackendHost" . }}:{{ .Values.reportsBackend.service.port }}/api/v1"
+            - name: APP_ENVIRONMENT
+              value: {{ .Values.target.environment | quote }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.reportsDashboard.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.reportsDashboard.resources | nindent 12 }}
+---
+{{- if .Values.reportsDashboard.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "geronimo.fullname" . }}-reports-dashboard
+  labels:
+    {{- include "geronimo.componentLabels" (dict "component" "reports-dashboard" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  {{- if .Values.reportsDashboard.ingress.className }}
+  ingressClassName: {{ .Values.reportsDashboard.ingress.className }}
+  {{- end }}
+  rules:
+    - host: {{ .Values.reportsDashboard.ingress.host | quote }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "geronimo.fullname" . }}-reports-dashboard
+                port:
+                  number: {{ .Values.reportsDashboard.service.port }}
+  {{- if .Values.reportsDashboard.ingress.tls }}
+  tls:
+    {{- toYaml .Values.reportsDashboard.ingress.tls | nindent 4 }}
+  {{- end }}
+{{- end }}

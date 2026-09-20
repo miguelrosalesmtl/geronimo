@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "geronimo.fullname" . }}-config
+  labels:
+    {{- include "geronimo.labels" . | nindent 4 }}
+data:
+  TARGET_ENV: {{ .Values.target.environment | quote }}
+  BASE_URL: {{ .Values.target.baseUrl | quote }}
+  API_BASE_URL: {{ .Values.target.apiBaseUrl | quote }}
+  # apps/e2e's report/submit.ts appends /api/v1/test-runs itself, so this one
+  # is the bare origin. reports-dashboard sets its own APP_API_URL directly
+  # in reports-dashboard.yaml (it needs an /api/v1 suffix this ConfigMap
+  # doesn't carry) -- see the comment there.
+  REPORTS_API_URL: "http://{{ include "geronimo.reportsBackendHost" . }}:{{ .Values.reportsBackend.service.port }}"
