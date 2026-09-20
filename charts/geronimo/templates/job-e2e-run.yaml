@@ -6,12 +6,21 @@ metadata:
   labels:
     {{- include "geronimo.componentLabels" (dict "component" "e2e-run" "Release" .Release "Chart" .Chart) | nindent 4 }}
   annotations:
-    # Re-triggerable via CI/CD or an ArgoCD PostSync hook without needing a
-    # unique name each time: `kubectl delete job/... && helm upgrade` or
-    # `kubectl create job --from=job/... <name>-manual-<ts>` both work.
+    # Runs automatically right after a deploy lands, however this chart gets
+    # applied:
+    #   - plain `helm install`/`helm upgrade`: the helm.sh/hook annotations
+    #     below fire it as a post-install/post-upgrade hook.
+    #   - ArgoCD: ArgoCD recognizes helm.sh/hook and maps post-install/
+    #     post-upgrade to its own PostSync phase automatically -- the
+    #     argocd.argoproj.io/hook annotation is included explicitly too so
+    #     that's true by inspection, not just by ArgoCD's implicit mapping.
+    # Either way it's also re-triggerable on demand without a new deploy:
+    # `kubectl create job --from=job/... <name>-manual-<ts>`.
     helm.sh/hook: post-install,post-upgrade
     helm.sh/hook-weight: "10"
     helm.sh/hook-delete-policy: before-hook-creation
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
 spec:
   backoffLimit: {{ .Values.job.backoffLimit }}
   activeDeadlineSeconds: {{ .Values.job.activeDeadlineSeconds }}

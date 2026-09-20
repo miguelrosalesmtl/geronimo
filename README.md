@@ -92,6 +92,17 @@ helm install geronimo charts/geronimo -n geronimo --create-namespace \
 
 See `charts/geronimo/values.yaml` and the chart's `NOTES.txt` (printed on install) for the one-time service-account bootstrap step and the CORS gotcha it warns about (`reports-dashboard` is a browser SPA calling `reports-backend` cross-origin — CORS is off by default in the forked backend template and has to be pointed at wherever the dashboard is actually reachable).
 
+### Triggering via ArgoCD
+
+We deploy through ArgoCD, so the e2e `Job` (`charts/geronimo/templates/job-e2e-run.yaml`) is set up to run automatically right after every sync — no separate CI step needed to fire it. It carries both:
+
+- `helm.sh/hook: post-install,post-upgrade` — ArgoCD recognizes standard Helm hook annotations on a Helm-sourced Application and maps `post-install`/`post-upgrade` to its own `PostSync` phase automatically.
+- `argocd.argoproj.io/hook: PostSync` — the same thing, spelled out explicitly, so it's true by reading the annotation rather than relying on that implicit mapping.
+
+Net effect: whenever the target application's own ArgoCD `Application` syncs a new version (merge → image/manifest update → ArgoCD detects drift → syncs), the e2e suite runs right after, against the version that's now actually live — not just "recently merged." `argocd.argoproj.io/hook-delete-policy: BeforeHookCreation` keeps the previous run's Job around for `kubectl logs`/debugging until the next one starts, matching `helm.sh/hook-delete-policy` for plain Helm installs.
+
+The `CronJob` (`cronjob-e2e-run.yaml`) is unaffected by any of this — it keeps running on its own schedule regardless of how or whether a sync happened.
+
 ## Status
 
 Everything above is built and verified end to end locally: a real Playwright run against `target-app` produces a JSON report that gets parsed, submitted, stored, and queried back out of a real `reports-backend` + Postgres — including the failure path (a broken test still gets ingested, with its error message and stack trace intact). `reports-dashboard` has real login wired up (its own session against `reports-backend`, not mocked) — an unauthenticated visitor is redirected to `/login`, and a signed-in one sees real stored runs.
